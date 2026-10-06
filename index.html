@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Johnson 的个人主页</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            text-align: center;
+            padding: 50px 60px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+
+        .avatar {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 4px solid #e94560;
+            object-fit: cover;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+        }
+
+        h1 span {
+            color: #e94560;
+        }
+
+        .subtitle {
+            color: #aaa;
+            margin-bottom: 28px;
+            font-size: 1.05rem;
+        }
+
+        .links {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .links a {
+            text-decoration: none;
+            color: #fff;
+            background: #e94560;
+            padding: 12px 28px;
+            border-radius: 30px;
+            font-size: 0.95rem;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .links a.secondary {
+            background: transparent;
+            border: 1px solid #e94560;
+            color: #e94560;
+        }
+
+        .links a:hover {
+            transform: translateY(-3px);
+            background: #ff6b81;
+        }
+
+        .links a.secondary:hover {
+            background: rgba(233, 69, 96, 0.15);
+        }
+
+        footer {
+            margin-top: 36px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img class="avatar" src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=professional%20portrait%20avatar%20of%20a%20friendly%20young%20software%20developer%2C%20digital%20illustration%20style%2C%20clean%20dark%20background%2C%20warm%20smile%2C%20high%20quality&image_size=square" alt="Johnson 的头像">
+        <h1>你好，我是 <span>Johnson</span></h1>
+        <p class="subtitle">这是我的第一个 GitHub 项目 · 正在学习编程的路上</p>
+        <div class="links">
+            <a href="https://github.com/johnson-lemon" target="_blank">我的 GitHub</a>
+            <a class="secondary" href="mailto:1324309819@qq.com">联系我</a>
+        </div>
+        <footer>由 GitHub Pages 免费托管 · 2026</footer>
+    </div>
+</body>
+</html>
