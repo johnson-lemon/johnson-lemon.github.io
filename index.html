@@ -943,20 +943,30 @@
             }, 1000);
         });
 
-        /* ========== 打字机效果 ========== */
+        /* ========== 打字机效果（按完整字形切分，emoji 不会切成问号） ========== */
         const texts = ['网络空间安全专业的大学生 🛡️', '正在探索 AI 工具的新世界 🤖', '爱摄影，也爱打游戏 📷🎮'];
         const typingEl = document.getElementById('typing');
         let ti = 0, ci = 0, deleting = false;
 
+        // 把字符串拆成"视觉字符"：emoji（含变体选择符/组合肤色）作为一个整体
+        function splitGraphemes(s) {
+            if (window.Intl && typeof Intl.Segmenter === 'function') {
+                return Array.from(new Intl.Segmenter('zh', { granularity: 'grapheme' }).segment(s), seg => seg.segment);
+            }
+            // 旧浏览器兜底：至少按 Unicode 码点切，避免代理对被切断
+            return Array.from(s);
+        }
+        const textSegs = texts.map(splitGraphemes);
+
         function startTyping() {
             function tick() {
-                const word = texts[ti];
+                const segs = textSegs[ti];
                 if (!deleting) {
-                    typingEl.textContent = word.slice(0, ++ci);
-                    if (ci === word.length) { deleting = true; setTimeout(tick, 1800); return; }
+                    typingEl.textContent = segs.slice(0, ++ci).join('');
+                    if (ci === segs.length) { deleting = true; setTimeout(tick, 1800); return; }
                 } else {
-                    typingEl.textContent = word.slice(0, --ci);
-                    if (ci === 0) { deleting = false; ti = (ti + 1) % texts.length; }
+                    typingEl.textContent = segs.slice(0, --ci).join('');
+                    if (ci === 0) { deleting = false; ti = (ti + 1) % textSegs.length; }
                 }
                 setTimeout(tick, deleting ? 45 : 110);
             }
@@ -982,9 +992,9 @@
 
         /* ========================================================
            整页吸附滚动引擎
-           - 每次滚轮/触摸/按键精准跳到相邻板块
+           - 桌面：鼠标滚轮 / 触控板 / 键盘精准跳到相邻板块
+           - 手机：上滑/下滑翻页，长内容先在本页内自然滚动到底再翻页
            - easeOutQuint 缓动：起步快、收尾慢，丝滑停靠
-           - 小屏（手机/矮窗口）自动降级为普通滚动
            ======================================================== */
         const panels = Array.from(document.querySelectorAll('#hero, #about, #skills, #projects, #footer'));
         const dots = Array.from(document.querySelectorAll('.dots a'));
@@ -994,7 +1004,11 @@
         let animating = false;
         let rafId = null;
 
-        const snapOn = () => window.matchMedia('(min-width: 720px) and (min-height: 600px)').matches;
+        // 桌面：窗口足够大才接管滚轮/键盘
+        const deskSnap = () => window.matchMedia('(min-width: 720px) and (min-height: 600px)').matches;
+        // 触屏设备（手机/平板）也启用吸附翻页
+        const isTouch = () => window.matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window);
+        const snapOn = () => deskSnap() || isTouch();
         const entered = () => enterBtn.dataset.done === '1';
 
         // easeOutQuint：先快后慢
@@ -1058,18 +1072,17 @@
         // 板块内容超出一屏时，先让用户看完内容再翻页
         function panelCanScroll(direction) {
             const el = panels[current];
-            if (!el || el.scrollHeight <= window.innerHeight + 6) return false;
+            if (!el || el.scrollHeight <= window.innerHeight + 6) return false;  // 内容装得下，直接翻
             const top = el.getBoundingClientRect().top;
-            if (top > -2) return false;                       // 已对齐顶部，可直接翻页
             if (direction > 0) {
                 const atBottom = top <= -(el.scrollHeight - window.innerHeight) + 2;
-                return !atBottom;                            // 未到底部，继续原生滚动
+                return !atBottom;                            // 还没看到底部，继续本页滚动
             }
-            return true;                                     // 向上时先回到板块顶部
+            return top < -2;                                 // 向上时先回到板块顶部，再翻上一页
         }
 
         window.addEventListener('wheel', (e) => {
-            if (!snapOn() || !entered()) return;
+            if (!deskSnap() || !entered()) return;
             if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // 忽略横向触控板
             if (Math.abs(e.deltaY) < 6) { e.preventDefault(); return; }
             const dir = e.deltaY > 0 ? 1 : -1;
@@ -1079,22 +1092,35 @@
             goTo(current + dir);
         }, { passive: false });
 
-        // 触屏：根据滑动方向翻页
-        let touchStartY = null;
+        // 触屏：记录起点，抬手时判断为明确的纵向滑动则翻页
+        let touchStartY = null, touchStartX = null;
         window.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;              // 多指手势（缩放等）不拦截
             touchStartY = e.touches[0].clientY;
+            touchStartX = e.touches[0].clientX;
         }, { passive: true });
 
         window.addEventListener('touchend', (e) => {
-            if (!snapOn() || !entered() || touchStartY === null) return;
-            const dy = touchStartY - e.changedTouches[0].clientY;
-            if (Math.abs(dy) > 45) goTo(current + (dy > 0 ? 1 : -1));
-            touchStartY = null;
+            if (!snapOn() || !entered() || touchStartY === null || animating) {
+                touchStartY = touchStartX = null;
+                return;
+            }
+            const endY = e.changedTouches[0].clientY;
+            const endX = e.changedTouches[0].clientX;
+            const dy = touchStartY - endY;                   // 正 = 上滑 → 下一页
+            const dx = touchStartX - endX;
+            touchStartY = touchStartX = null;
+
+            if (Math.abs(dy) < 50) return;                   // 短滑/轻触不翻页
+            if (Math.abs(dy) <= Math.abs(dx)) return;        // 横向滑动不翻页
+            const dir = dy > 0 ? 1 : -1;
+            if (panelCanScroll(dir)) return;                 // 本页内容未看完，先自然滚动
+            goTo(current + dir);
         }, { passive: true });
 
-        // 键盘支持
+        // 键盘支持（桌面）
         window.addEventListener('keydown', (e) => {
-            if (!snapOn() || !entered()) return;
+            if (!deskSnap() || !entered()) return;
             if (['ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); goTo(current + 1); }
             if (['ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); goTo(current - 1); }
             if (e.key === 'Home') { e.preventDefault(); goTo(0); }
