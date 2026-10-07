@@ -83,24 +83,106 @@
             50% { transform: translate(40px, 50px) scale(1.12); }
         }
 
-        /* ========== 入场封面 ========== */
+        /* ========== 入场封面（毛玻璃 + 圆形揭示） ========== */
         #entry {
             position: fixed;
             inset: 0;
             z-index: 100;
-            background: radial-gradient(ellipse at center, #0f0f24 0%, #05050c 100%);
+            background: radial-gradient(ellipse at center, rgba(14, 14, 32, 0.72) 0%, rgba(5, 5, 12, 0.96) 100%);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 36px;
-            transition: opacity 0.9s ease, visibility 0.9s;
+            /* 只动画 clip-path 与透明度：GPU 友好，不触发全屏重绘 */
+            transition:
+                clip-path 0.62s cubic-bezier(0.33, 1, 0.68, 1),
+                opacity 0.25s ease 0.6s,
+                visibility 0s linear 0.85s;
+        }
+
+        #entry.revealing {
+            clip-path: circle(0 at var(--fx-x, 50%) var(--fx-y, 50%));
         }
 
         #entry.gone {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
+        }
+
+        /* 毛玻璃卡片：静态渲染，动画期间只做一次轻量淡出 */
+        .entry-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            padding: 56px 76px;
+            border-radius: 28px;
+            background: rgba(255, 255, 255, 0.055);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(22px) saturate(1.5);
+            -webkit-backdrop-filter: blur(22px) saturate(1.5);
+            box-shadow:
+                0 24px 90px rgba(0, 0, 0, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.14);
+            transition:
+                opacity 0.26s ease,
+                transform 0.26s ease,
+                backdrop-filter 0s;
+        }
+
+        .entry-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.5), transparent 40%, rgba(168, 85, 247, 0.5));
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        .entry-card.leaving {
+            opacity: 0;
+            transform: scale(0.92) translateY(-8px);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        /* 跟随圆形揭示边缘的发光圈：
+           直径 = 2 倍实测遮罩半径（JS 写入 --r），环边与遮罩圆始终重合；
+           scale(0→1) 放大，辉光只分布在环边 ±十几像素，不会染满全屏 */
+        .entry-ring {
+            position: absolute;
+            left: var(--fx-x, 50%);
+            top: var(--fx-y, 50%);
+            width: calc(2 * var(--r, 160vmax));
+            height: calc(2 * var(--r, 160vmax));
+            margin-left: calc(-1 * var(--r, 160vmax));
+            margin-top: calc(-1 * var(--r, 160vmax));
+            border-radius: 50%;
+            background: radial-gradient(circle,
+                transparent 0 calc(50% - 18px),
+                rgba(168, 85, 247, 0.28) calc(50% - 11px),
+                rgba(34, 211, 238, 0.55) calc(50% - 5px),
+                rgba(186, 245, 255, 0.95) calc(50% - 1px),
+                rgba(186, 245, 255, 0.95) calc(50% + 1px),
+                rgba(34, 211, 238, 0.30) calc(50% + 6px),
+                transparent calc(50% + 15px));
+            transform: scale(0);
+            opacity: 0;
+            pointer-events: none;
+            will-change: transform;
+        }
+
+        #entry.revealing .entry-ring {
+            opacity: 1;
+            transform: scale(1);
+            transition:
+                transform 0.62s cubic-bezier(0.33, 1, 0.68, 1),
+                opacity 0.62s ease;
         }
 
         .entry-logo {
@@ -140,7 +222,6 @@
 
         .enter-btn {
             position: relative;
-            margin-top: 12px;
             padding: 15px 52px;
             font-size: 1rem;
             letter-spacing: 0.28em;
@@ -559,53 +640,7 @@
 
         footer a:hover { color: var(--cyan); }
 
-        /* ========== 高级入场：光圈扩散 + 模糊聚焦 ========== */
-        #enterFx {
-            position: fixed;
-            inset: 0;
-            z-index: 110;
-            pointer-events: none;
-            background:
-                radial-gradient(circle at 50% 42%, rgba(124, 58, 237, 0.55) 0%, rgba(15, 15, 36, 0.98) 55%, #05050c 100%);
-            clip-path: circle(0 at var(--fx-x, 50%) var(--fx-y, 50%));
-            transition:
-                clip-path 0.82s cubic-bezier(0.65, 0, 0.35, 1),
-                opacity 0.6s ease 0.12s;
-        }
-
-        #enterFx::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background:
-                radial-gradient(circle at var(--fx-x, 50%) var(--fx-y, 50%),
-                    rgba(34, 211, 238, 0.35) 0%, rgba(168, 85, 247, 0.12) 22%, transparent 45%);
-        }
-
-        #enterFx.expand {
-            clip-path: circle(160vmax at var(--fx-x, 50%) var(--fx-y, 50%));
-        }
-
-        #enterFx.fade {
-            opacity: 0;
-        }
-
-        /* 主内容：入场瞬间由模糊拉近、聚焦变清晰 */
-        #app {
-            transition:
-                filter 1.05s cubic-bezier(0.22, 1, 0.36, 1),
-                transform 1.05s cubic-bezier(0.22, 1, 0.36, 1),
-                opacity 1.05s ease;
-            will-change: filter, transform;
-        }
-
-        body.fx-cover #app {
-            filter: blur(18px);
-            transform: scale(1.08);
-            opacity: 0;
-        }
-
-        /* 入场按钮按下的涟漪反馈 */
+        /* ========== 入场按钮按下反馈 ========== */
         .enter-btn.clicked {
             animation: btnPop 0.45s ease;
         }
@@ -699,6 +734,7 @@
             nav a { margin-left: 14px; font-size: 0.8rem; }
             section { padding: 80px 6vw; }
             .dots { display: none; }
+            .entry-card { padding: 42px 34px; gap: 24px; }
         }
     </style>
 </head>
@@ -713,16 +749,16 @@
     <!-- 顶部滚动进度条 -->
     <div id="progress"></div>
 
-    <!-- 入场光圈特效层 -->
-    <div id="enterFx"></div>
-
-    <!-- ========== 入场封面 ========== -->
+    <!-- ========== 入场封面（毛玻璃） ========== -->
     <div id="entry">
-        <div class="entry-logo">JOHNSON</div>
-        <div class="entry-line"></div>
-        <div class="entry-sub">Welcome to my space</div>
-        <button class="enter-btn" id="enterBtn"><span>点 击 进 入</span></button>
-        <div class="entry-hint">CLICK TO EXPLORE</div>
+        <div class="entry-card" id="entryCard">
+            <div class="entry-logo">JOHNSON</div>
+            <div class="entry-line"></div>
+            <div class="entry-sub">Welcome to my space</div>
+            <button class="enter-btn" id="enterBtn"><span>点 击 进 入</span></button>
+            <div class="entry-hint">CLICK TO EXPLORE</div>
+        </div>
+        <div class="entry-ring"></div>
     </div>
 
     <!-- 右侧板块圆点 -->
@@ -844,38 +880,49 @@
     </div><!-- /#app -->
 
     <script>
-        /* ========== 点击进入：光圈扩散 → 模糊聚焦 → 元素浮现 ========== */
+        /* ========== 点击进入：毛玻璃卡片淡出 → 圆圈放大揭示第一页 ========== */
         const entry = document.getElementById('entry');
+        const entryCard = document.getElementById('entryCard');
         const enterBtn = document.getElementById('enterBtn');
-        const fx = document.getElementById('enterFx');
 
-        enterBtn.addEventListener('click', (e) => {
+        enterBtn.addEventListener('click', () => {
             if (enterBtn.dataset.done) return;
             enterBtn.dataset.done = '1';
             enterBtn.classList.add('clicked');
 
-            // 光圈以按钮为圆心扩散
+            // 圆心 = 按钮中心
             const r = enterBtn.getBoundingClientRect();
-            fx.style.setProperty('--fx-x', (r.left + r.width / 2) + 'px');
-            fx.style.setProperty('--fx-y', (r.top + r.height / 2) + 'px');
+            const cx = r.left + r.width / 2;
+            const cy = r.top + r.height / 2;
+            const x = cx + 'px';
+            const y = cy + 'px';
 
-            // 主内容先进入模糊拉近状态
-            document.body.classList.add('fx-cover');
+            // 起始半径 = 圆心到视口四角的最远距离（圆第一帧就刚好铺满屏幕）
+            const maxR = Math.ceil(Math.max(
+                Math.hypot(cx, cy),
+                Math.hypot(window.innerWidth - cx, cy),
+                Math.hypot(cx, window.innerHeight - cy),
+                Math.hypot(window.innerWidth - cx, window.innerHeight - cy)
+            )) + 4;
 
-            requestAnimationFrame(() => requestAnimationFrame(() => {
-                fx.classList.add('expand');
-            }));
+            entry.style.setProperty('--fx-x', x);
+            entry.style.setProperty('--fx-y', y);
+            entry.style.setProperty('--r', maxR + 'px');
 
-            // 光圈铺满后：封面退场，主内容聚焦变清晰
+            // 1) 毛玻璃卡片轻盈淡出（小区域，只动 opacity/transform）
+            entryCard.classList.add('leaving');
+
+            // 2) 卡片将消失时，圆形遮罩从屏幕角开始收缩 → 光圈立刻可见地放大
             setTimeout(() => {
-                entry.classList.add('gone');
-                document.body.classList.add('entered');
-                requestAnimationFrame(() => {
-                    document.body.classList.remove('fx-cover');
-                    fx.classList.add('fade');
-                });
+                entry.style.clipPath = 'circle(' + maxR + 'px at ' + x + ' ' + y + ')';
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    entry.classList.add('revealing');
+                }));
+            }, 140);
 
-                // 首屏元素依次浮现
+            // 3) 光圈扩到屏幕中部时，第一页元素依次浮现
+            setTimeout(() => {
+                document.body.classList.add('entered');
                 const order = [
                     '#nav', '.avatar', '#hero h1', '.typing',
                     '.hero-badges', '.hero-actions', '.scroll-hint'
@@ -884,13 +931,16 @@
                     setTimeout(() => {
                         const el = document.querySelector(sel);
                         if (el) el.classList.add('show');
-                    }, 320 + i * 230);
+                    }, i * 190);
                 });
                 startTyping();
-            }, 780);
+            }, 400);
 
-            // 清理特效层
-            setTimeout(() => fx.remove(), 2200);
+            // 4) 动画结束后彻底隐藏封面并清理内联样式
+            setTimeout(() => {
+                entry.classList.add('gone');
+                entry.style.clipPath = '';
+            }, 1000);
         });
 
         /* ========== 打字机效果 ========== */
@@ -915,6 +965,8 @@
 
         /* ========== 滚动时元素浮现 + 技能条动画 ========== */
         const io = new IntersectionObserver((entries) => {
+            // 入场封面未揭开前不允许提前浮现（否则会透过毛玻璃看到内容）
+            if (!document.body.classList.contains('entered')) return;
             entries.forEach(e => {
                 if (e.isIntersecting) {
                     e.target.classList.add('show');
